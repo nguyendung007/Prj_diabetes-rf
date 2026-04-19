@@ -1,0 +1,12 @@
+[flake8]
+max-line-length = 100
+exclude =
+    __pycache__,
+    .git,
+    notebooks/,
+    .github/
+ignore =
+    E203,   # whitespace before ':' (Black-compatible)
+    W503    # line break before binary operator (Black-compatible)
+per-file-ignores =
+    test.py: E501   # file gốc của sinh viên, bỏ qua line length

@@ -1,0 +1,10 @@
+# Model outputs
+outputs/
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Data (tự động tải qua download_data.py)
+data/

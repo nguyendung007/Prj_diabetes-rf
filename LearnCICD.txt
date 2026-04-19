@@ -1,0 +1,91 @@
+giờ còn phải học về CI/CD nữa duma,nhiều code vcl 
+1.Sửa lại file requiremnet (Chưa up lên github)
+
+2.Tạo mới 
+├── tests/                            ← TẠO MỚI
+│   ├── __init__.py
+│   ├── test_preprocess.py
+│   └── test_model.py
+
+├── .flake8                           ← TẠO MỚI (đặt ở root)
+├── pyproject.toml                    ← TẠO MỚI (đặt ở root)
+├── pytest.ini                        ← TẠO MỚI (đặt ở root)
+
+Vì window ko tương thích,phải tạo 1 vài file bằng terminal
+kiểu này : echo "" > pyproject.toml
+
+├── .github/                          ← TẠO MỚI
+│   └── workflows/
+│       └── main.yml                  ← file CI/CD chính
+
+Dược rồi giờ là phần chính,cần phải hiểu về ý nghĩa của các file này 
+nữa 
+Đúng, đó là quy trình chuẩn. Tóm gọn lại:
+
+**Luồng làm việc thực tế:**
+```
+Viết code logic (src/, scripts/)
+        ↓
+Viết tests kiểm tra code đó (tests/)
+        ↓
+Viết CI/CD workflow (main.yml)
+        ↓
+Push lên GitHub → Actions tự chạy
+```
+
+**Về thứ tự thực tế** — có 2 trường phái:
+- **Test sau** (như dự án này): viết code xong rồi mới viết test → phổ biến với sinh viên/dự án nhỏ
+- **TDD** (Test Driven Development): viết test *trước* rồi mới viết code cho test pass → chuẩn công nghiệp
+
+**CI/CD không nhất thiết phải phức tạp**, dự án nhỏ có thể chỉ cần:
+```yaml
+- pip install -r requirements.txt
+- pytest tests/
+```
+Vài dòng là đủ. Phiên bản tôi viết cho bạn đã khá đầy đủ vì có thêm lint + train smoke test, thực tế nhiều dự án học thuật chỉ cần job `test` thôi.
+
+**Tóm lại:** CI/CD là *thói quen nghề nghiệp*, không phải bắt buộc về mặt kỹ thuật — nhưng khi đi làm thực tế thì 100% công ty đều dùng.
+
+**Lint** — kiểm tra code *trước khi chạy*, phát hiện lỗi cú pháp, code bẩn, không đúng chuẩn. Giống như "chấm văn phạm" cho code.
+> Ví dụ: dòng quá dài, import thừa, dấu cách sai chỗ...
+
+**Smoke Test** — chạy thử toàn bộ pipeline *một lần nhanh* để xem có "bốc khói" (crash) không, không kiểm tra chi tiết.
+> Ví dụ: download data → train → kiểm tra file `.pkl` có tạo ra không — nếu không crash là pass.
+
+Tên "smoke test" lấy từ ngành điện: cắm điện thiết bị mới, nếu không bốc khói là tạm ổn 😄
+
+
+2.Học về test
+
+Đầu tiên là trong đó phải import được đống mà mình sẽ test đã 
+from src.model import (
+    evaluate,
+    get_roc_data,
+    load_model,
+    save_model,
+    train_baselines,
+    train_random_forest,
+)
+
+ Fixtures : đồ đạc 
+
+
+@pytest.fixture(scope="module"): Đây là một decorator của Pytest.
+ scope="module" nghĩa là dữ liệu này chỉ được tạo một lần duy nhất 
+ cho toàn bộ file test này, giúp tiết kiệm thời gian.
+
+1. Phân nhóm các bài Test
+Trong phát triển phần mềm, người ta thường chia test thành các cấp độ:
+
+Unit Test: Kiểm tra từng hàm, từng module nhỏ lẻ (chạy cực nhanh).
+
+Integration Test: Kiểm tra sự phối hợp giữa các module.
+
+End-to-End (E2E) Test: Kiểm tra toàn bộ quy trình ứng dụng.
+
+Bằng cách dùng @pytest.mark.unit, bạn đang đánh dấu hàm đó thuộc nhóm Unit Test.
+
+
+
+git config --global user.name "nguyendung007"
+git config --global user.email "ng.h.dung007@gmail.com"

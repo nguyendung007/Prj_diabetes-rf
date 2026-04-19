@@ -1,0 +1,154 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║         CI/CD — Diabetes Random Forest Project               ║
+# ║  Trigger : push/PR vào main                                  ║
+# ║  Jobs    : lint → test → train-smoke                         ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Tránh chạy nhiều workflow cùng lúc cho cùng 1 branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 1 ── Kiểm tra code style (Flake8 + Black)
+  # ────────────────────────────────────────────────────────────────
+  lint:
+    name: 🎨 Lint & Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: 📦 Install lint tools
+        run: |
+          pip install flake8 black
+
+      - name: 🔍 Flake8 — kiểm tra lỗi cú pháp & style
+        run: |
+          flake8 src/ scripts/ app.py \
+            --max-line-length=100 \
+            --exclude=__pycache__,.git \
+            --ignore=E203,W503
+        # E203: whitespace before ':' (Black-compatible)
+        # W503: line break before binary operator (Black-compatible)
+
+      - name: ⬛ Black — kiểm tra định dạng code
+        run: |
+          black --check --line-length=100 src/ scripts/ app.py
+        # Chỉ CHECK, không tự sửa. Nếu fail → chạy `black .` ở local trước khi push
+
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 2 ── Chạy Unit Tests (pytest)
+  # ────────────────────────────────────────────────────────────────
+  test:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint          # Chỉ chạy nếu lint pass
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: 🧪 Run pytest với coverage report
+        run: |
+          pytest tests/ \
+            --verbose \
+            --tb=short \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=60
+        # --cov-fail-under=60 : pipeline fail nếu coverage < 60%
+
+      - name: 📊 Upload coverage report (artifact)
+        uses: actions/upload-artifact@v4
+        if: always()        # Upload kể cả khi tests fail để xem báo cáo
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 3 ── Smoke Test: Train nhanh & kiểm tra output
+  # ────────────────────────────────────────────────────────────────
+  train-smoke:
+    name: 🚀 Train Smoke Test
+    runs-on: ubuntu-latest
+    needs: test           # Chỉ chạy sau khi unit tests pass
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: 📦 Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: 📥 Tải dataset
+        run: python scripts/download_data.py
+
+      - name: 🏋️ Train model (không GridSearchCV để chạy nhanh)
+        run: python scripts/train.py
+        # tune=False theo mặc định → nhanh hơn nhiều
+
+      - name: ✅ Kiểm tra file output tồn tại
+        run: |
+          python - <<'EOF'
+          import os, sys
+          required = [
+              "outputs/random_forest_model.pkl",
+              "outputs/scaler.pkl",
+          ]
+          missing = [f for f in required if not os.path.exists(f)]
+          if missing:
+              print(f"❌ Thiếu file: {missing}")
+              sys.exit(1)
+          print("✅ Tất cả output file đã được tạo thành công!")
+          EOF
+
+      - name: 🔍 Chạy prediction test
+        run: python test.py
+
+      - name: 💾 Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-model-${{ github.sha }}
+          path: |
+            outputs/random_forest_model.pkl
+            outputs/scaler.pkl
+          retention-days: 30
