@@ -4,7 +4,7 @@ Dự án Machine Learning sử dụng **Random Forest** để dự đoán nguy c
 
 ---
 
-## 📁 Cấu trúc dự án
+## 📁 Cấu trúc dự án (Có thể không đúng hoàn toàn)
 
 ```
 diabetes-rf-project/
